@@ -26,7 +26,7 @@ make -j4         # compile oxDNA. The -jX make option makes it compile the code 
 
 At the end of the compilation three executables (*oxDNA*, *DNAnalysis* and *confGenerator*) will be placed in the `build/bin` directory. 
 
-Compiling with Python bindings will also generate an `oxpy` package in the `build/oxpy` directory that can be imported in Python. Running `make install` will attempt to copy the package (as well as `oxDNA_analysis_tools`) to the `pip`'s module directory. The specific location will depend on your system's settings. We advise you to use [virtual environments](https://docs.python.org/3/tutorial/venv.html) (see *e.g.* [pipenv](https://docs.pipenv.org/)) to avoid conflicts with other packages and/or dependency and permission issues.
+Compiling with Python bindings will also generate an `oxpy` package in the `build/oxpy` directory that can be imported in Python. Running `make install` will attempt to copy the package (as well as `oxDNA_analysis_tools`) to the `pip`'s module directory. The specific location will depend on your system's settings. We advise you to use [virtual environments](https://docs.python.org/3/tutorial/venv.html) (see *e.g.* [pipenv](https://docs.pipenv.org/) or [conda](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html)) to avoid conflicts with other packages and/or dependency and permission issues.
 
 ### Updating a local copy
 
@@ -39,7 +39,7 @@ cd build        # enter the build folder (see above)
 make -j4        # compile the updated source
 ```
 
-If you also want to update `oxpy` don't forget to run `make install` after the compilation.
+If you also want to update `oxpy` and `OAT` don't forget to run `make install` after the compilation.
 
 ### CMake options
 
@@ -70,10 +70,6 @@ If you are on your own machine or you installed Python via Anaconda, the `-DOxpy
 * `make rovigatti` Compiles the observables and interactions in contrib/rovigatti
 * `make romano` Compiles the observables and interactions in contrib/romano
 
-### Known issues
-
-The list of known issues can be browsed online [here](https://github.com/lorenzo-rovigatti/oxDNA/issues).
-
 #### CMake compiler choice
 
 CMake searches your $PATH for compatible C and C++ compilers and uses the first ones it finds. If you want to use a different set than the default, you can override the compiler choice as follows:
@@ -88,7 +84,7 @@ cmake -DCMAKE_C_COMPILER=/path/to/gcc -DCMAKE_CXX_COMPILER=path/to/g++ ..
 * When compiling with the Python bindings enabled CMake will sometimes choose the wrong Python binary and/or include files, resulting in a failed compilation. If this happens the correct paths can be directly as follows:
 
 ```bash
-cmake -DPython=ON -DPYTHON_INCLUDE_DIRS=/path/to/python/include/dir -DPYTHON_EXECUTABLE=/path/to/python/binary ..
+cmake -DPython=ON -DPYTHON_INCLUDE_DIR=/path/to/python/include/dir -DPYTHON_EXECUTABLE=/path/to/python/binary ..
 ```
 
 If you are using conda environments, the paths should look something like:  
@@ -105,6 +101,14 @@ cmake -DPython=1 -DPYTHON_EXECUTABLE=$HOME/miniconda3/bin/python -DPYTHON_INCLUD
   `python -m pip install ./analysis --no-build-isolation`
 * Sometimes installation will fail with `TypeError: expected string or bytes-like object`. This error is usually caused by older versions of either `oxpy` or `oxDNA-analysis-tools` somewhere in your `$PATH`. Remove them with `pip uninstall oxpy` and `pip uninstall oxDNA-analysis-tools` and try installing again.
 
+## Known issues
+
+* An `illegal instruction` is sometimes issued when the code is compiled on a CPU architecture and run on another, or when specific combinations of CPU architecture and compiler are used. Invoke CMake with `-DNATIVE_COMPILATION=Off` and re-compile the code to fix the issue.
+* When compiling oxDNA with Python support on Microsoft's WSL, if the local repository is downloaded in Windows (*i.e.*, outside WSL), tests and analysis scripts may fail (see [this issue](https://github.com/lorenzo-rovigatti/oxDNA/issues/122#issue-2499923060)). To avoid these problems, clone the repository directly within the WSL environment.
+* The `oxpy` installation may fail with a `Built wheel for oxpy is invalid: Wheel has unexpected file name` warning in some specific cases (see [here](https://github.com/lorenzo-rovigatti/oxDNA/issues/137) for an example, where updating `setuptools` solved the issue).
+* A list of other known issues can be browsed online [here](https://github.com/lorenzo-rovigatti/oxDNA/issues).
+
+
 ## Using `oxpy` with old Python versions
 
 `oxpy` interfaces with oxDNA using [Pybind11](https://github.com/pybind/pybind11). In September 2023 we updated the version of pybind11 included with oxDNA from 2.2 to 2.11 due to changes to the Python C API which made older versions of Pybind11 incompatible with the current Python 3.11. This new version of pybind11 is only compatible with Python > 3.8. If, for some reason, you need to use an older version of Python 3 and cannot install a newer version in a virtual environment via, for example, [Conda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html), this can be done by using an older version of pybind11:
@@ -118,7 +122,7 @@ cmake -DPython=1 -DPYTHON_EXECUTABLE=$HOME/miniconda3/bin/python -DPYTHON_INCLUD
  
 ## Testing
 
-* `make test_run` runs quick tests to check that oxDNA has been correctly compiled, and that the core interactions (`DNA2`, `RNA2` and `DRH`) compute the energy contributions in a nicked double strand correctly.
+* `make test_run` runs quick tests to check that oxDNA has been correctly compiled, and that the core interactions (`DNA2`, `RNA2` and `NA`) compute the energy contributions in a nicked double strand correctly.
 * `make test_quick` runs longer tests to check that oxDNA works.
 * `make test_oxpy` checks that the Python bindings work.
 * `make test` runs all sets of tests above.

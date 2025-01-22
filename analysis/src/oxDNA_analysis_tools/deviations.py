@@ -2,7 +2,7 @@ import argparse
 import os
 from typing import List, Tuple
 import numpy as np
-from sys import stderr
+from oxDNA_analysis_tools.UTILS.logger import log, logger_settings
 from collections import namedtuple
 from json import dumps
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TopInfo, TrajInfo
@@ -42,8 +42,9 @@ def deviations(traj_info:TrajInfo, top_info:TopInfo, mean_conf:Configuration, in
             ncpus (int): (optional) Number of CPUs to use for alignment
         
         Returns:
-            RMSDs (np.array): Root mean squared deviation for each configuration in the trajectory
-            RMSFs (np.array): Average fluctuation for each particle in the structure
+            Tuple[np.ndarray, np.ndarray]:
+            | Root mean squared deviation for each configuration in the trajectory
+            | Average fluctuation for each particle in the structure
     """
     if indexes == []:
         indexes = list(range(top_info.nbases))
@@ -83,7 +84,7 @@ def output(RMSDs:np.ndarray, RMSFs:np.ndarray, outfile:str='devs.json', plot_nam
             data_file (str): (optional) Name of the oxView order parameter file for the RMSD
     """
     # Save the RMSDs and RMSFs to json files
-    print("INFO: writing deviations to {}".format(outfile), file=stderr)
+    log("writing deviations to {}".format(outfile))
     with open(outfile, 'w') as f:
         f.write(
             dumps({
@@ -91,7 +92,7 @@ def output(RMSDs:np.ndarray, RMSFs:np.ndarray, outfile:str='devs.json', plot_nam
             })
         )
 
-    print("INFO: writing RMSDs to oxView order parameter file, {}".format(data_file), file=stderr)
+    log("writing RMSDs to oxView order parameter file, {}".format(data_file))
     with open(data_file, 'w') as f:
         f.write(
             dumps({
@@ -99,7 +100,7 @@ def output(RMSDs:np.ndarray, RMSFs:np.ndarray, outfile:str='devs.json', plot_nam
             })
         )
 
-    print("INFO: writing RMSD plot to {}".format(plot_name), file=stderr)
+    log("writing RMSD plot to {}".format(plot_name))
     plt.plot(RMSDs)
     plt.axhline(np.mean(RMSDs), color='red')
     plt.xlabel('Configuration')
@@ -118,11 +119,12 @@ def cli_parser(prog="deviations.py"):
     parser = argparse.ArgumentParser(prog = prog, description="Compute the RMSD of each nucleotide from the mean structure produced by compute_mean.py")
     parser.add_argument('mean_structure', type=str, nargs=1, help="The mean structure .json file from compute_mean.py")
     parser.add_argument('trajectory', type=str, nargs=1, help='the trajectory file you wish to analyze')
-    parser.add_argument('-p', metavar='num_cpus', nargs=1, type=int, dest='parallel', help="(optional) How many cores to use")
+    parser.add_argument('-p', '--parallel', metavar='num_cpus', nargs=1, type=int, dest='parallel', help="(optional) How many cores to use")
     parser.add_argument('-o', '--output', metavar='output_file', nargs=1, help='The filename to save the RMSF json file to')
-    parser.add_argument('-i', metavar='index_file', dest='index_file', nargs=1, help='Compute mean structure of a subset of particles from a space-separated list in the provided file')
-    parser.add_argument('-r', metavar='rmsd_plot', dest='rmsd_plot', nargs=1, help='The name of the file to save the RMSD plot to.')
-    parser.add_argument('-d', metavar='rmsd_data', dest='rmsd_data', nargs=1, help='The name of the file to save the RMSD data in json format.')
+    parser.add_argument('-i', '--index', metavar='index_file', dest='index_file', nargs=1, help='Compute mean structure of a subset of particles from a space-separated list in the provided file')
+    parser.add_argument('-r', '--plot', metavar='rmsd_plot', dest='rmsd_plot', nargs=1, help='The name of the file to save the RMSD plot to.')
+    parser.add_argument('-d', '--data', metavar='rmsd_data', dest='rmsd_data', nargs=1, help='The name of the file to save the RMSD data in json format.')
+    parser.add_argument('-q', '--quiet', metavar='quiet', dest='quiet', action='store_const', const=True, default=False, help="Don't print 'INFO' messages to stderr")
     return parser
 
 def main():
@@ -130,6 +132,7 @@ def main():
     args = parser.parse_args()
 
     #system check
+    logger_settings.set_quiet(args.quiet)
     from oxDNA_analysis_tools.config import check
     check(["python", "numpy", "matplotlib"])
 
@@ -168,7 +171,7 @@ def main():
             outfile += ".json"
     else: 
         outfile = "devs.json"
-        print("INFO: No outfile name provided, defaulting to \"{}\"".format(outfile), file=stderr)
+        log("No outfile name provided, defaulting to \"{}\"".format(outfile))
 
     #-r names the file to print the RMSD plot to
     if args.rmsd_plot:

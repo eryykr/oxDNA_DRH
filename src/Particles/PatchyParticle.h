@@ -15,6 +15,7 @@ struct PatchyBond {
 	number r_p;
 	int p_patch, q_patch;
 	number energy;
+	LR_vector r;
 	LR_vector force;
 	LR_vector p_torque, q_torque;
 
@@ -38,7 +39,7 @@ protected:
 	int _N_patches;
 
 public:
-	PatchyParticle(std::vector<LR_vector> base_patches, int nt, number sigma);
+	PatchyParticle(std::vector<LR_vector> base_patches, int nt, number sigma, bool normalise_patches=true);
 	PatchyParticle(int N_patches, int nt, number sigma);
 	virtual ~PatchyParticle();
 

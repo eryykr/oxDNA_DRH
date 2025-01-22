@@ -2,6 +2,7 @@
 #define CGNUCLEICACIDS_INTERACTION_H
 
 #include "Interactions/BaseInteraction.h"
+#include "ParticleFTG.h"
 
 #include <vector>
 #include <array>
@@ -46,9 +47,9 @@ protected:
 	number _Kfene = 15.;
 	number _rfene = 1.5;
 	number _sqr_rfene;
-	number _WCA_sigma = 1.0, _WCA_sigma_unbonded;
-	number _PS_sqr_rep_rcut;
-	number _mu = 1.0;
+	number _WCA_sigma = 1.0, _WCA_sigma_unbonded, _WCA_sigma_crossover = 0.0;
+	number _PS_sqr_rep_rcut, _PS_sqr_rep_rcut_unbonded, _PS_sqr_rep_rcut_crossover;
+	number _tC = 37.0;
 	number dS_mod = 1.0;
 	number alpha_mod = 1.0;
 	number bdG_threshold = 1.0;
@@ -64,6 +65,7 @@ protected:
 	int _N_attractive_types = 0;
 	int _interaction_matrix_size = 0;
 	std::string _interaction_matrix_file;
+	std::string _crossover_file;
 
 	/// three-body potential stuff
 	number _3b_rcut = -1.;
@@ -97,6 +99,7 @@ protected:
 	number _mbf_A = 0.0;
 	number _mbf_B = 0.0;
 
+	std::vector<int> crossovers;
 	std::map<int, std::set<PSBond, PSBondCompare> > _bonds;
 
 	int _N_chains = -1;

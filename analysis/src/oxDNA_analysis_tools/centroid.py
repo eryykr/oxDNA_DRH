@@ -1,4 +1,4 @@
-from sys import stderr
+from oxDNA_analysis_tools.UTILS.logger import log, logger_settings
 from collections import namedtuple
 from typing import Tuple, List
 import numpy as np
@@ -50,8 +50,9 @@ def centroid(traj_info:TrajInfo, top_info:TopInfo, ref_conf:Configuration, index
             ncpus (int): (optional) Number of CPUs to use for alignment
 
         Returns:
-            centroid_candidate (Configuration): The configuration with the lowest RMSD to the reference
-            min_RMSD (float): The RMSD from the centroid to the reference
+            Tuple[Configuration, float]:
+            | The configuration with the lowest RMSD to the reference
+            | The RMSD from the centroid to the reference
     '''
     if indexes == []:
         indexes = list(range(top_info.nbases))
@@ -91,9 +92,10 @@ def cli_parser(prog = "centroid.py"):
     parser = argparse.ArgumentParser(prog = prog, description="Find the configuration in a trajectory closest to a provided reference configuration")
     parser.add_argument('reference_structure', type=str, nargs=1, help="The reference structure to search against")
     parser.add_argument('trajectory', type=str, nargs=1, help='the trajectory file you wish to analyze')
-    parser.add_argument('-p', metavar='num_cpus', nargs=1, type=int, dest='parallel', help="(optional) How many cores to use")
+    parser.add_argument('-p', '--parallel', metavar='num_cpus', nargs=1, type=int, dest='parallel', help="(optional) How many cores to use")
     parser.add_argument('-o', '--output', metavar='output_file', nargs=1, help='The filename to save the centroid to')
-    parser.add_argument('-i', metavar='index_file', dest='index_file', nargs=1, help='Alignment and RMSD based on a subset of particles given in a space-separated list in the provided file')
+    parser.add_argument('-i', '--index', metavar='index_file', dest='index_file', nargs=1, help='Alignment and RMSD based on a subset of particles given in a space-separated list in the provided file')
+    parser.add_argument('-q', '--quiet', metavar='quiet', dest='quiet', action='store_const', const=True, default=False, help="Don't print 'INFO' messages to stderr")
     return parser
 
 def main():
@@ -101,6 +103,7 @@ def main():
     args = parser.parse_args()
 
     #system check
+    logger_settings.set_quiet(args.quiet)
     from oxDNA_analysis_tools.config import check
     check(["python", "numpy"])
 
@@ -138,12 +141,12 @@ def main():
         outfile = args.output[0].strip()
     else: 
         outfile = "centroid.dat"
-        print("INFO: No outfile name provided, defaulting to \"{}\"".format(outfile), file=stderr)
+        log("No outfile name provided, defaulting to \"{}\"".format(outfile))
 
     write_conf(outfile, centroid_candidate, include_vel=traj_info.incl_v)
-    print("INFO: Wrote centroid to {}".format(outfile), file=stderr)
-    print("INFO: Min RMSD: {} nm".format(min_RMSD), file=stderr)
-    print("INFO: Centroid time: {}".format(centroid_candidate.time), file=stderr)
+    log("Wrote centroid to {}".format(outfile))
+    log("Min RMSD: {} nm".format(min_RMSD))
+    log("Centroid time: {}".format(centroid_candidate.time))
 
     print("--- %s seconds ---" % (time.time() - start_time))
 

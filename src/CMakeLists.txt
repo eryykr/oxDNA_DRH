@@ -53,6 +53,7 @@ SET(observables_SOURCES
 	Observables/AverageEnergy.cpp
 	Observables/ContactMap.cpp
 	Observables/AllVectors.cpp
+	Observables/ExternalForce.cpp
 	Observables/Configurations/Configuration.cpp
 	Observables/Configurations/BinaryConfiguration.cpp
 	Observables/Configurations/TclOutput.cpp
@@ -160,11 +161,14 @@ SET(forces_SOURCES
 	Forces/AlignmentField.cpp
 	Forces/GenericCentralForce.cpp
 	Forces/LJCone.cpp
+	Forces/YukawaSphere.cpp
 	Forces/Metadynamics/LTCOMTrap.cpp
 	Forces/Metadynamics/LTCOMAngleTrap.cpp
 	Forces/Metadynamics/LT2DCOMTrap.cpp
 	Forces/Metadynamics/LTAtanCOMTrap.cpp
 	Forces/Metadynamics/meta_utils.cpp
+	Forces/AttractionPlane.cpp
+
 )
 
 SET(box_SOURCES

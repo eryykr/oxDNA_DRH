@@ -1,6 +1,7 @@
-from sys import stderr
+from oxDNA_analysis_tools.UTILS.logger import log, logger_settings
 import numpy as np
 import pickle
+import re
 from os.path import exists, abspath
 from typing import List, Tuple, Iterator, Union
 import os
@@ -40,7 +41,7 @@ def linear_read(traj_info:TrajInfo, top_info:TopInfo, chunk_size:int=-1) -> Iter
         Parameters:
             traj_info (TrajInfo) : The trajectory info
             top_info (TopInfo) : The topology info
-            ntopart (int) : The number of confs to read at a time
+            chunk_size (int) : The number of confs to read at a time.  Defaults to config.get_chunk_size()
 
         Returns:
             iterator[Configuration] : An iterator object which yields lists of <chunk_size> configurations.
@@ -49,12 +50,13 @@ def linear_read(traj_info:TrajInfo, top_info:TopInfo, chunk_size:int=-1) -> Iter
         chunk_size = get_chunk_size()
     current_chunk = 0
     while True:
-        print(f"INFO: processed {current_chunk*chunk_size} / {len(traj_info.idxs)} confs", end='\r', file=stderr)
+        log(f"Processed {current_chunk*chunk_size} / {len(traj_info.idxs)} confs", end='\r')
         if current_chunk*chunk_size >= len(traj_info.idxs):
             break
         confs = get_confs(top_info, traj_info, current_chunk*chunk_size, chunk_size)
         yield confs
         current_chunk += 1
+    print()
 
 #calculates the length of a trajectory file
 def _index(traj_file) -> List[ConfInfo]: 
@@ -137,7 +139,7 @@ def get_top_info(top:str) -> TopInfo:
         if my_top_info[-1] == '5->3':
             my_top_info = my_top_info[:-1]
         else:
-            print("WARNING: The old topology format is depreciated and future tools may not support it.  Please update to the new topology format for future simulations.")
+            log("The old topology format is depreciated and future tools may not support it.  Please update to the new topology format for future simulations.", level='warning')
         
         # There's actually nothing different between the headers once you remove the new marker.
         if len(my_top_info) == 2:
@@ -159,7 +161,7 @@ def get_top_info_from_traj(traj : str) -> TopInfo:
             traj (str) : path to the trajectory file
 
         Returns:
-            (TopInfo, TrajInfo) : topology and trajectory info
+            TopInfo : topology info
     """
     with open(traj) as f:
         l = ''
@@ -372,7 +374,7 @@ def strand_describe(top:str) -> Tuple[System, list]:
 
         # With the old topology, we assume that the sytem is homogenous.
         if 'U' in [m.btype for m in monomers]:
-            print("INFO: RNA detected, all strands will be marked as RNA", file=stderr)
+            log("RNA detected, all strands will be marked as RNA")
             for s in system.strands:
                 s.type = 'RNA'
 
@@ -409,12 +411,13 @@ def get_input_parameter(input_file, parameter) -> str:
     """
     fin = open(input_file)
     value = ''
-    for line in fin:
-        line = line.lstrip()
-        if not line.startswith('#'):
-            if parameter in line:
-                value = line.split('=')[1].replace(' ','').replace('\n','')
-    fin.close()
+    pattern = rf'^\s*{re.escape(parameter)}\s*=\s*([^#]*)' #regex pattern, handles starting whitespace and comments at end of line.
+    with open(input_file) as fin:
+        for line in fin:
+            match = re.match(pattern, line) #attempt to match line to pattern
+            if match:
+                value = match.group(1).strip() #store relevant contents of found match
+
     if value == '':
         raise RuntimeError("Key {} not found in input file {}".format(parameter, input_file))
     return value
@@ -423,39 +426,52 @@ def get_input_parameter(input_file, parameter) -> str:
 ##########                              CONF UTILS                        ##########
 ####################################################################################
 
-def inbox(conf : Configuration, center=False) -> Configuration:
+def inbox(conf:Configuration, center:bool=True, centerpoint:Union[str,np.ndarray]='bc') -> Configuration:
     """
         Modify the positions attribute such that all positions are inside the box.
 
+        For cohesive structures, you almost always want center=True.
+        For diffuse simulations, you probably want center=False.
+
         Parameters:
             conf (Configuration) : The configuration to inbox
-            center (bool) : If True, center the configuration on the box
+            center (bool) : If True, center the configuration in the box (default True)
+            centerpoint (str|np.ndarray) : If 'bc', center in the box, if array, center on the array (default 'bc')
 
         Returns:
             (Configuration) : The inboxed configuration
     """
+    # Get coords in home box
     def realMod (n, m):
         return(((n % m) + m) % m)
     def coord_in_box(p):
         p = realMod(p, conf.box)
         return(p)
+    
+    # Calculate center of mass in home box of particles in many boxes
     def calc_PBC_COM(conf):
         angle = (conf.positions * 2 * np.pi) / conf.box
         cm = np.array([[np.sum(np.cos(angle[:,0])), np.sum(np.sin(angle[:,0]))], 
         [np.sum(np.cos(angle[:,1])), np.sum(np.sin(angle[:,1]))], 
         [np.sum(np.cos(angle[:,2])), np.sum(np.sin(angle[:,2]))]]) / len(angle)
         return conf.box / (2 * np.pi) * (np.arctan2(-cm[:,1], -cm[:,0]) + np.pi)
-    target = np.array([conf.box[0] / 2, conf.box[1] / 2, conf.box[2] / 2])
-    cms = calc_PBC_COM(conf)
+    
+    # You generally want to center cohesive structures in the box so they're not cut in visualization
+    # For diffuse simulations, you generally do not want centering.
+    cms = np.zeros(3)
+    target = np.zeros(3)
+    if center:
+        if centerpoint == 'bc':
+            target = np.array([conf.box[0] / 2, conf.box[1] / 2, conf.box[2] / 2])
+        else:
+            target = centerpoint
+        cms = calc_PBC_COM(conf)
     positions = conf.positions + target - cms   
     new_poses = coord_in_box(positions)
-    positions += (new_poses - conf.positions)
-    if center:
-        cms = np.mean(positions, axis=0)
-        positions -= cms
+
     return Configuration(
         conf.time, conf.box, conf.energy,
-        positions, conf.a1s, conf.a3s
+        new_poses, conf.a1s, conf.a3s
     )
 
 ####################################################################################
@@ -485,6 +501,7 @@ def write_conf(path:str, conf:Configuration, append:bool=False, include_vel:bool
     mode = 'a' if append else 'w'
     with open(path,mode) as f:
         f.write("\n".join(out))
+        f.write("\n")
 
 def conf_to_str(conf:Configuration, include_vel:bool=True) -> str:
     """
@@ -545,9 +562,7 @@ def get_top_string(system:System, old_format:bool=False) -> str:
         # this will break circular strands.
         for s in system.strands:
             if s.is_old() == False:
-                raise RuntimeError("Writing an old-style topology file based on a new-style one will ruin the corresponding configuration file (strands will be backwards)\n\
-                                   \
-                                   Please use the conversion script found in oxDNA/utils/convert.py to change to the old topology format.")
+                raise RuntimeError("Writing an old-style topology file based on a new-style one will ruin the corresponding configuration file (strands will be backwards)\n\nPlease use the conversion script found in oxDNA/utils/convert.py to change to the old topology format.")
             #it's a nucleic acid strand
             if s.id > 0:
                 na_strands += 1

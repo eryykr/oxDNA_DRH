@@ -2,6 +2,7 @@ import os
 from typing import List, Dict
 import argparse
 from oxDNA_analysis_tools.UTILS.RyeReader import describe, get_confs
+from oxDNA_analysis_tools.UTILS.logger import log, logger_settings
 
 def file_info(trajectories:List) -> Dict:
     """
@@ -11,7 +12,7 @@ def file_info(trajectories:List) -> Dict:
             trajectories (List[str]) : Filepaths to the trajectories to analyze
 
         Returns:
-            info (Dict) : Dictionary with name, number of particles, number of confs, filezie, starting step and ending step.
+            Dict : Dictionary with name, number of particles, number of confs, filezie, starting step and ending step.
     """
     
     info = {
@@ -69,12 +70,14 @@ def cli_parser(prog="file_info.py"):
     parser = argparse.ArgumentParser(prog = prog, description="Prints metadata about trajectories")
     parser.add_argument('trajectories', type=str, nargs='+', help='One or more trajectories to get information on.')
     parser.add_argument('-l', '--labels', type=str, nargs='+', help='Labels for the files if not the filename')
+    parser.add_argument('-q', '--quiet', metavar='quiet', dest='quiet', action='store_const', const=True, default=False, help="Don't print 'INFO' messages to stderr")
     return parser
 
 def main():
     parser = cli_parser(os.path.basename(__file__))
     args = parser.parse_args()
 
+    logger_settings.set_quiet(args.quiet)
     # Verify that dependencies are installed and a good version
     from oxDNA_analysis_tools.config import check
     check(["python"])
